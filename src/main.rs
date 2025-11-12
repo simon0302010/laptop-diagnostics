@@ -1,7 +1,12 @@
+use std::{fs, os::unix::process::CommandExt, process::Command};
+
 use colored::Colorize;
-use sysinfo::{Disks, System};
+use sysinfo::System;
+use crossterm::event::{read, Event};
 
 fn main() {
+    let mut clear_cmd = Command::new("clear").spawn().expect("failed to clear terminal");
+    let _ = clear_cmd.wait();
     let manager = match battery::Manager::new() {
         Ok(m) => m,
         Err(e) => {
@@ -62,12 +67,39 @@ fn main() {
     let total_memory_gb = sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
     println!("  Memory:               {:.2} GB", total_memory_gb);
     println!("  CPU cores:            {}", sys.cpus().len());
-
-    println!("\n{}", "  Disks:".yellow());
-    for disk in &Disks::new_with_refreshed_list() {
-        let name = disk.name().to_string_lossy();
-        let fs = disk.file_system().to_string_lossy();
-        let space_gb = disk.total_space() as f64 / (1024.0 * 1024.0 * 1024.0);
-        println!("    {} ({}): {:.1} GB", name, fs, space_gb);
+    match fs::read_to_string("/sys/class/dmi/id/product_name") {
+        Ok(name) => println!("  Product Name:         {}", name.trim_end()),
+        Err(e) => println!("{}", format!("WARNING: failed to get product name: {}", e).red())
     }
+    match fs::read_to_string("/sys/class/dmi/id/product_serial") {
+        Ok(serial) => println!("  Product Serial:       {}", serial.trim_end()),
+        Err(e) => println!("{}", format!("WARNING: failed to get product serial: {}", e).red())
+    }
+    match fs::read_to_string("/sys/class/dmi/id/bios_version") {
+        Ok(version) => println!("  BIOS Version:         {}", version.trim_end()),
+        Err(e) => println!("{}", format!("WARNING: failed to get bios version: {}", e).red())
+    }
+    match fs::read_to_string("/sys/class/dmi/id/bios_date") {
+        Ok(date) => println!("  BIOS Date:            {}", date.trim_end()),
+        Err(e) => println!("{}", format!("WARNING: failed to get bios date: {}", e).red())
+    }
+
+
+    // println!("\n{}", "  Disks:".yellow());
+    // for disk in &Disks::new_with_refreshed_list() {
+    //     let name = disk.name().to_string_lossy();
+    //     let fs = disk.file_system().to_string_lossy();
+    //     let space_gb = disk.total_space() as f64 / (1024.0 * 1024.0 * 1024.0);
+    //     println!("    {} ({}): {:.1} GB", name, fs, space_gb);
+    // }
+
+    println!("\n\n{}", "Press Enter to shutdown or CTRL+C to continue in tty...".green());
+    
+    loop {
+        if let Event::Key(_) = read().unwrap() {
+            break;
+        }
+    }
+
+    let _ = Command::new("poweroff").exec();
 }

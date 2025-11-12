@@ -1,0 +1,7 @@
+[package]
+name = "laptop-diagnostics"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+battery = "0.7"

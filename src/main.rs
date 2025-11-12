@@ -1,3 +1,6 @@
+use colored::Colorize;
+use sysinfo::{Disks, System};
+
 fn main() {
     let manager = match battery::Manager::new() {
         Ok(m) => m,
@@ -15,6 +18,7 @@ fn main() {
         }
     };
 
+    println!("{}", "Battery Info:".cyan());
     for (idx, maybe_battery) in batteries.enumerate() {
         let battery = match maybe_battery {
             Ok(bat) => bat,
@@ -24,26 +28,46 @@ fn main() {
             }
         };
 
-        println!("Battery #{}:", idx + 1);
-        println!("State: {:?}", battery.state());
+        println!("{}", format!("  Battery #{}:", idx + 1).yellow());
+        println!("  State:                {:?}", battery.state());
         if let Some(to_full) = battery.time_to_full() {
             let time_to_full = to_full;
             let seconds = time_to_full.value;
             let hours = (seconds / 3600.0).floor();
             let minutes = ((seconds % 3600.0) / 60.0).floor();
-            println!("Time to full charge: {:.0}h {:.0}m", hours, minutes,);
+            println!("  Time to full charge:  {:.0}h {:.0}m", hours, minutes,);
         }
         if let Some(to_empty) = battery.time_to_empty() {
             let time_to_empty = to_empty;
             let seconds = time_to_empty.value;
             let hours = (seconds / 3600.0).floor();
             let minutes = ((seconds % 3600.0) / 60.0).floor();
-            println!("Time to empty: {:.0}h {:.0}m", hours, minutes,);
+            println!("  Time to empty:        {:.0}h {:.0}m", hours, minutes,);
         }
-        println!("Health: {:.0}%", battery.state_of_health().value * 100.0);
+        println!("  Health:               {:.0}%", battery.state_of_health().value * 100.0);
         if let Some(cycles) = battery.cycle_count() {
-            println!("Charge cylces: {:?}", cycles);
+            println!("  Charge cylces:        {:?}", cycles);
         }
-        println!("Percentage charged: {}%", battery.state_of_charge().value * 100.0);
+        println!("  Percentage charged:   {:.0}%", battery.state_of_charge().value * 100.0);
+    }
+    
+    println!();
+
+    // system info
+    let mut sys = System::new_all();
+    sys.refresh_all();
+
+    println!("{}", "Hardware Info:".cyan());
+
+    let total_memory_gb = sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
+    println!("  Memory:               {:.2} GB", total_memory_gb);
+    println!("  CPU cores:            {}", sys.cpus().len());
+
+    println!("\n{}", "  Disks:".yellow());
+    for disk in &Disks::new_with_refreshed_list() {
+        let name = disk.name().to_string_lossy();
+        let fs = disk.file_system().to_string_lossy();
+        let space_gb = disk.total_space() as f64 / (1024.0 * 1024.0 * 1024.0);
+        println!("    {} ({}): {:.1} GB", name, fs, space_gb);
     }
 }
